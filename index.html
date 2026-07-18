@@ -6334,6 +6334,36 @@
       font-size: 17px;
     }
 
+  
+    /* =========================================================
+       NAVEGAÇÃO RESPONSIVA
+       Desktop: controles visíveis.
+       Tablet e celular: navegação por gesto horizontal.
+    ========================================================= */
+    @media (hover: none), (pointer: coarse), (max-width: 1024px) {
+      .deck-controls {
+        display: none !important;
+      }
+
+      .viewport {
+        touch-action: pan-y;
+        overscroll-behavior: none;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+
+      .slide {
+        -webkit-user-select: none;
+        user-select: none;
+      }
+    }
+
+    @media (hover: hover) and (pointer: fine) and (min-width: 1025px) {
+      .deck-controls {
+        display: flex;
+      }
+    }
+
   </style>
 </head>
 <body>
@@ -7482,6 +7512,89 @@
 
     showSlide(0);
     window.addEventListener('resize', fitSlides, { passive: true });
+  
+    // =========================================================
+    // Navegação por gesto horizontal — celular e tablet
+    // =========================================================
+    (() => {
+      const swipeSurface = document.querySelector('.viewport');
+      if (!swipeSurface) return;
+
+      const isTouchNavigation = () =>
+        window.matchMedia('(hover: none), (pointer: coarse), (max-width: 1024px)').matches;
+
+      let startX = 0;
+      let startY = 0;
+      let currentX = 0;
+      let currentY = 0;
+      let gestureActive = false;
+      let horizontalGesture = false;
+
+      const minimumDistance = 55;
+      const directionRatio = 1.25;
+
+      swipeSurface.addEventListener('touchstart', (event) => {
+        if (!isTouchNavigation() || event.touches.length !== 1) return;
+
+        const touch = event.touches[0];
+        startX = touch.clientX;
+        startY = touch.clientY;
+        currentX = startX;
+        currentY = startY;
+        gestureActive = true;
+        horizontalGesture = false;
+      }, { passive: true });
+
+      swipeSurface.addEventListener('touchmove', (event) => {
+        if (!gestureActive || event.touches.length !== 1) return;
+
+        const touch = event.touches[0];
+        currentX = touch.clientX;
+        currentY = touch.clientY;
+
+        const deltaX = currentX - startX;
+        const deltaY = currentY - startY;
+
+        if (!horizontalGesture) {
+          horizontalGesture =
+            Math.abs(deltaX) > 14 &&
+            Math.abs(deltaX) > Math.abs(deltaY) * directionRatio;
+        }
+
+        if (horizontalGesture) {
+          event.preventDefault();
+        }
+      }, { passive: false });
+
+      swipeSurface.addEventListener('touchend', () => {
+        if (!gestureActive) return;
+
+        const deltaX = currentX - startX;
+        const deltaY = currentY - startY;
+
+        const validSwipe =
+          horizontalGesture &&
+          Math.abs(deltaX) >= minimumDistance &&
+          Math.abs(deltaX) > Math.abs(deltaY) * directionRatio;
+
+        if (validSwipe) {
+          if (deltaX < 0 && currentSlide < slides.length - 1) {
+            showSlide(currentSlide + 1);
+          } else if (deltaX > 0 && currentSlide > 0) {
+            showSlide(currentSlide - 1);
+          }
+        }
+
+        gestureActive = false;
+        horizontalGesture = false;
+      }, { passive: true });
+
+      swipeSurface.addEventListener('touchcancel', () => {
+        gestureActive = false;
+        horizontalGesture = false;
+      }, { passive: true });
+    })();
+
   </script>
 </body>
 </html>
