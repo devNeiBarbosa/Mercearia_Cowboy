@@ -6443,6 +6443,76 @@
       }
     }
 
+  
+    /* =========================================================
+       TABLET E CELULAR — SEM GAP SUPERIOR + AJUSTE VERTICAL
+       O slide inicia no topo da área útil e permite rolagem
+       vertical apenas quando a altura renderizada ultrapassar
+       o espaço disponível do navegador.
+    ========================================================= */
+    @media (max-width: 1366px), (hover: none), (pointer: coarse) {
+      html,
+      body {
+        width: 100% !important;
+        min-height: 100% !important;
+        height: auto !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        overscroll-behavior-y: contain;
+        background: #FFFFFF !important;
+      }
+
+      body {
+        display: block !important;
+      }
+
+      .viewport {
+        position: relative !important;
+        width: 100% !important;
+        height: var(--mobile-slide-height, 100dvh) !important;
+        min-height: 100dvh !important;
+        display: block !important;
+        overflow: visible !important;
+        background: #FFFFFF !important;
+        touch-action: pan-y !important;
+      }
+
+      .slide {
+        left: 50% !important;
+        top: 0 !important;
+        transform-origin: top center !important;
+      }
+    }
+
+    @media (hover: hover) and (pointer: fine) and (min-width: 1367px) {
+      html,
+      body {
+        width: 100% !important;
+        height: 100% !important;
+        overflow: hidden !important;
+      }
+
+      body {
+        display: grid !important;
+        place-items: center !important;
+      }
+
+      .viewport {
+        width: 100vw !important;
+        height: 100vh !important;
+        min-height: 0 !important;
+        display: grid !important;
+        place-items: center !important;
+        overflow: hidden !important;
+      }
+
+      .slide {
+        left: 50% !important;
+        top: 50% !important;
+        transform-origin: center center !important;
+      }
+    }
+
   </style>
 </head>
 <body>
@@ -7565,18 +7635,49 @@
       prevButton.disabled = currentIndex === 0;
       nextButton.disabled = currentIndex === slides.length - 1;
       fitSlides();
+
+      const touchLayout =
+        navigator.maxTouchPoints > 0 ||
+        'ontouchstart' in window ||
+        window.matchMedia('(max-width: 1366px), (hover: none), (pointer: coarse)').matches;
+
+      if (touchLayout) {
+        window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      }
     }
 
     function fitSlides() {
-      const tabletPortrait = window.innerWidth <= 1200 && window.innerHeight > window.innerWidth * 1.08;
+      const viewportWidth = window.visualViewport?.width || window.innerWidth;
+      const viewportHeight = window.visualViewport?.height || window.innerHeight;
+      const touchLayout =
+        navigator.maxTouchPoints > 0 ||
+        'ontouchstart' in window ||
+        window.matchMedia('(max-width: 1366px), (hover: none), (pointer: coarse)').matches;
+
+      const tabletPortrait = viewportWidth <= 1200 && viewportHeight > viewportWidth * 1.08;
       const designWidth = tabletPortrait ? 1080 : 1920;
       const designHeight = tabletPortrait ? 1440 : 1080;
-      const scale = Math.min(window.innerWidth / designWidth, window.innerHeight / designHeight);
 
-      slides.forEach((item) => {
-        item.classList.toggle('tablet-portrait', tabletPortrait && item.dataset.slide === '1');
-        item.style.transform = `translate(-50%, -50%) scale(${scale})`;
-      });
+      if (touchLayout) {
+        const scale = viewportWidth / designWidth;
+        const scaledHeight = Math.ceil(designHeight * scale);
+        const documentHeight = Math.max(viewportHeight, scaledHeight);
+
+        document.documentElement.style.setProperty('--mobile-slide-height', `${documentHeight}px`);
+
+        slides.forEach((item) => {
+          item.classList.toggle('tablet-portrait', tabletPortrait && item.dataset.slide === '1');
+          item.style.transform = `translateX(-50%) scale(${scale})`;
+        });
+      } else {
+        const scale = Math.min(viewportWidth / designWidth, viewportHeight / designHeight);
+        document.documentElement.style.removeProperty('--mobile-slide-height');
+
+        slides.forEach((item) => {
+          item.classList.toggle('tablet-portrait', tabletPortrait && item.dataset.slide === '1');
+          item.style.transform = `translate(-50%, -50%) scale(${scale})`;
+        });
+      }
     }
 
     prevButton.addEventListener('click', () => showSlide(currentIndex - 1));
@@ -7588,6 +7689,9 @@
       if (event.key === 'Home') showSlide(0);
       if (event.key === 'End') showSlide(slides.length - 1);
     });
+
+    window.addEventListener('resize', fitSlides);
+    window.visualViewport?.addEventListener('resize', fitSlides);
 
     showSlide(0);
     window.addEventListener('resize', fitSlides, { passive: true });
